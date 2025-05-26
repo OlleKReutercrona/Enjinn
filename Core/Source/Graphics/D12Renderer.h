@@ -2,8 +2,8 @@
 #include "Math/Vector2.h"
 #include "Math/Vector3.h"
 #include "Math/Vector4.h"
-#include <D3dx12.h>
-#include <wrl/client.h>
+#include "ConstantBuffer.h"
+
 using namespace Microsoft::WRL;
 
 struct IDXGISwapChain3;
@@ -18,6 +18,8 @@ struct ID3D12GraphicsCommandList;
 struct ID3D12Fence;
 
 namespace Enj {
+	struct FrameData;
+
 	struct D12RendererCreationParams {
 		OMath::Vector2ui windowSize;
 	};
@@ -29,7 +31,8 @@ namespace Enj {
 		void operator=(const D12Renderer& renderer) = delete;
 
 		void Init(const HWND& hwnd);
-		void Render();
+		void Update(const Enj::FrameData& frameData);
+		void Render(const Enj::FrameData& frameData);
 		void Destroy();
 
 		void OnResize(const OMath::Vector2ui windowSize);
@@ -37,6 +40,7 @@ namespace Enj {
 		void LoadPipeline(const HWND& hwnd);
 		void LoadAssets();
 		void PopulateCommandList();
+		void PopulateCommandList(const Enj::FrameData& frameData);
 		void WaitForPreviousFrame();
 
 	private:
