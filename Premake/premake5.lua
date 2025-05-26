@@ -30,6 +30,13 @@ local LINKER_OPTIONS =  {
     "/ignore:4099", -- linking object as if no debug info
 }
 
+local USE_PCH = true
+local function UsePrecompiled()
+    if not USE_PCH then return end
+    pchheader ("stdafx.h")
+    pchsource ("../Core/Source/stdafx.cpp")
+end
+
 local directories = {
     root            = basePath,
     bin             = basePath .. "Bin/",
@@ -37,6 +44,8 @@ local directories = {
     shaders         = basePath .. "Bin/Shaders/",
 
     intermediateLib = basePath .. "Temp/IntermediateLib",
+
+    pchPath         = basePath .. "Core/Source/",
 
     -- Project
     project         = basePath .. "Project/",
@@ -146,10 +155,14 @@ project(ENGINE_NAME)
     targetname(ENGINE_NAME.."_%{cfg.buildcfg}")
     objdir(directories.temp.."/"..ENGINE_NAME.."/%{cfg.buildcfg}")
 
+    UsePrecompiled()
+
     files {
         directories.coreSource.."**.h",
         directories.coreSource.."**.hpp",
         directories.coreSource.."**.cpp",
+
+        directories.pchPath.."**",
 
         directories.coreSource.."**.hlsl",
         directories.coreSource.."**.hlsli"
@@ -159,6 +172,7 @@ project(ENGINE_NAME)
         directories.externalInclude,
         directories.root,
         directories.coreSource,
+        directories.pchPath,
     }
 
     filter (CONFIG_FILTERS.DEBUG)
