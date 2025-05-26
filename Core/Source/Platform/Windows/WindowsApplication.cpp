@@ -1,6 +1,9 @@
+#include "stdafx.h"
+
 #include "WindowsApplication.h"
 #include "Engine.h"
 #include "Window/Window.h"
+#include <Utility/Timer.h>
 
 
 int WindowsApplication::Run(HINSTANCE hInstance, int cmdShow) {
@@ -18,17 +21,22 @@ int WindowsApplication::Run(HINSTANCE hInstance, int cmdShow) {
     
     engine.Init(std::move(window));
 
+    Enj::Timer timer;
+
+
     MSG msg = {};
     while (msg.message != WM_QUIT) {
-
         // Process queued messages
         if (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) {
             TranslateMessage(&msg);
             DispatchMessage(&msg);
         }
+        timer.Update();
 
-        engine.Update();
-        engine.Render();
+        Enj::FrameData frameData = { timer.DeltaTime(), timer.TotalTime() };
+
+        engine.Update(frameData);
+        engine.Render(frameData);
     }
 
     engine.Destroy();

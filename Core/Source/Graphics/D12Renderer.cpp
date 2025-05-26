@@ -1,8 +1,8 @@
+#include "stdafx.h"
+
 #include "D12Renderer.h"
 #include "Utility/HrExceptionHelper.h"
-#include <d3d12.h>
-#include <dxgi1_4.h>
-#include <d3dcompiler.h>
+#include "Engine.h" // including FrameData, should be its own file or a util file
 
 Enj::D12Renderer::D12Renderer(const D12RendererCreationParams& params) :
 mFrameIndex(0),
@@ -17,9 +17,12 @@ void Enj::D12Renderer::Init(const HWND& hwnd) {
 	LoadAssets();
 }
 
-void Enj::D12Renderer::Render() {
+void Enj::D12Renderer::Update(const Enj::FrameData& frameData) {
+}
+
+void Enj::D12Renderer::Render(const Enj::FrameData& frameData) {
 	// Record all the commands we need to render the scene into the command list.
-	PopulateCommandList();
+	PopulateCommandList(frameData);
 
 	// Execute the command list.
 	ID3D12CommandList* ppCommandLists[] = { mCommandList.Get() };
@@ -38,16 +41,23 @@ void Enj::D12Renderer::Destroy() {
 	CloseHandle(mFenceEvent);
 }
 
-void Enj::D12Renderer::OnResize(const OMath::Vector2ui windowSize) {
+void Enj::D12Renderer::OnResize(const OMath::Vector2ui /*windowSize*/) {
 }
 
 void Enj::D12Renderer::LoadPipeline(const HWND& hwnd) {
 
+	UINT dxgiFactoryFlags = 0;
+
 	// Enable the D3D12 debug layer
 #ifdef _DEBUG
-	ComPtr<ID3D12Debug> debugController;
+	ComPtr<ID3D12Debug1> debugController;
 	if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&debugController)))) {
 		debugController->EnableDebugLayer();
+		debugController->SetEnableGPUBasedValidation(TRUE);
+		debugController->Release();
+
+		// Enable additional debug layers.
+		dxgiFactoryFlags |= DXGI_CREATE_FACTORY_DEBUG;
 	}
 #endif
 
@@ -74,6 +84,18 @@ void Enj::D12Renderer::LoadPipeline(const HWND& hwnd) {
 		));
 	}
 
+#ifdef _DEBUG
+	{
+#pragma message("WARNING: DX12 DEBUG ENABLED, CAN BE SLOW")
+		ID3D12InfoQueue* infoQueue = nullptr;
+		if (SUCCEEDED(mDevice->QueryInterface(__uuidof(ID3D12InfoQueue), (void**)&infoQueue))) {
+			infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_ERROR, TRUE);
+			infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_CORRUPTION, TRUE);
+			infoQueue->Release();
+		}
+	}
+#endif
+
 	// Describe and create the command queue
 	D3D12_COMMAND_QUEUE_DESC queueDesc = {};
 	queueDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
@@ -83,7 +105,7 @@ void Enj::D12Renderer::LoadPipeline(const HWND& hwnd) {
 
 	// Describe and create the swap chain.
 	DXGI_SWAP_CHAIN_DESC swapChainDesc = {};
-	swapChainDesc.BufferCount = sFrameCount;
+	swapChainDesc.BufferCount = sFrameBufferCount;
 	swapChainDesc.BufferDesc.Width = mWindowSize.mX;
 	swapChainDesc.BufferDesc.Height = mWindowSize.mY;
 	swapChainDesc.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
@@ -105,12 +127,14 @@ void Enj::D12Renderer::LoadPipeline(const HWND& hwnd) {
 	// This sample does not support fullscreen transitions. ? 
 	ThrowIfFailed(factory->MakeWindowAssociation(hwnd, DXGI_MWA_NO_ALT_ENTER));
 
+	ThrowIfFailed(swapChain.As(&mSwapChain));
+
 	mFrameIndex = mSwapChain->GetCurrentBackBufferIndex();
 
 	// Create descriptor heaps.
 	{
 		D3D12_DESCRIPTOR_HEAP_DESC rtvHeapDesc = {};
-		rtvHeapDesc.NumDescriptors = sFrameCount;
+		rtvHeapDesc.NumDescriptors = sFrameBufferCount;
 		rtvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
 		rtvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
 		ThrowIfFailed(mDevice->CreateDescriptorHeap(&rtvHeapDesc, IID_PPV_ARGS(&mRTVHeap)));
@@ -123,12 +147,13 @@ void Enj::D12Renderer::LoadPipeline(const HWND& hwnd) {
 		CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(mRTVHeap->GetCPUDescriptorHandleForHeapStart());
 
 		// Create a RTV for each frame.
-		for (UINT n = 0; n < sFrameCount; ++n) {
+		for (UINT n = 0; n < sFrameBufferCount; ++n) {
 			ThrowIfFailed(mSwapChain->GetBuffer(n, IID_PPV_ARGS(&mRenderTargets[n])));
 			mDevice->CreateRenderTargetView(mRenderTargets[n].Get(), nullptr, rtvHandle);
 			rtvHandle.Offset(1, mRTVDescSize);
 		}
 	}
+	mCbvSrvDescriptorSize = mDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
 	ThrowIfFailed(mDevice->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&mCommandAllocator)));
 }
@@ -142,7 +167,7 @@ void Enj::D12Renderer::LoadAssets() {
 
 		ComPtr<ID3DBlob> signature;
 		ComPtr<ID3D10Blob> error;
-		ThrowIfFailed(D3D12SerializeRootSignature(&rootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION_1, &signature, &error));
+		ThrowIfFailed(D3DX12SerializeVersionedRootSignature(&rootSignatureDesc, featureData.HighestVersion, &signature, &error));
 		ThrowIfFailed(mDevice->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(&mRootSignature)));
 	}
 
@@ -251,7 +276,7 @@ void Enj::D12Renderer::LoadAssets() {
 	}
 }
 
-void Enj::D12Renderer::PopulateCommandList() {
+void Enj::D12Renderer::PopulateCommandList(const Enj::FrameData& frameData) {
 	// Command list allocators can only be reset when the associated 
 		// command lists have finished execution on the GPU; apps should use 
 		// fences to determine GPU execution progress.

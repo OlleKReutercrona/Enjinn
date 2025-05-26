@@ -1,3 +1,5 @@
+#include "stdafx.h"
+
 #include "Window.h"
 
 Enj::Window::Window(const WindowCreationParams& creationParams) :
@@ -13,6 +15,8 @@ Enj::Window::Window(const WindowCreationParams& creationParams) :
     windowClass.hInstance = creationParams.hInstance;
     windowClass.hCursor = LoadCursor(NULL, IDC_ARROW);
     windowClass.lpszClassName = mTitle.c_str();
+    windowClass.hbrBackground = (HBRUSH)(COLOR_WINDOW + 2);
+    //windowClass.hIcon = icon; // Todo in the future
     RegisterClassEx(&windowClass);
 
     RECT windowRect = { 0, 0, static_cast<LONG>(mWindowSize.mX), static_cast<LONG>(mWindowSize.mY) };
@@ -33,6 +37,10 @@ Enj::Window::Window(const WindowCreationParams& creationParams) :
         creationParams.engine);
 
     ShowWindow(mHWND, creationParams.cmdShow);
+
+    //if (fullscreen) {
+    //    SetWindowLong(mHWND, GWL_STYLE, 0);
+    //}
 }
 
 void Enj::Window::SetWindowSize(const OMath::Vector2ui& windowSize) {
@@ -55,7 +63,7 @@ void Enj::Window::SetWindowCustomText(const std::wstring& text) {
     ApplyWindowText();
 }
 
-const std::wstring& Enj::Window::WindowName() const {
+const std::wstring Enj::Window::WindowName() const {
     return mTitle + L": " + mCustomText;
 }
 

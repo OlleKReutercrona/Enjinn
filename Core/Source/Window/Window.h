@@ -1,8 +1,5 @@
 #pragma once
-#include <wtypes.h>
 #include <Math/Vector2.h>
-#include <string>
-#include <windef.h>
 
 namespace Enj {
 	class Engine;
@@ -27,7 +24,7 @@ namespace Enj {
 
 		void SetWindowTitle(const std::wstring& windowTitle);
 		void SetWindowCustomText(const std::wstring& text);
-		const std::wstring& WindowName() const;
+		const std::wstring WindowName() const;
 
 		HWND Hwnd();
 

@@ -1,7 +1,5 @@
 #pragma once
-#include <string>
 #include <Math/Vector2.h>
-#include <memory>
 
 struct IDXGIAdapter1;
 struct IDXGIFactory1;
@@ -9,6 +7,12 @@ struct IDXGIFactory1;
 namespace Enj {
 	class Window;
 	class D12Renderer;
+
+	struct FrameData {
+		const float mDeltaTime;
+		const float mTotalTime;
+	};
+
 
 	class Engine {
 	public:
@@ -18,8 +22,8 @@ namespace Enj {
 		~Engine();
 
 		void Init(std::shared_ptr<Enj::Window> window);
-		void Update();
-		void Render();
+		void Update(const FrameData& frameData);
+		void Render(const FrameData& frameData);
 		void Destroy();
 
 		const OMath::Vector2ui& GetWindowSize();

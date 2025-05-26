@@ -1,8 +1,6 @@
+#include "stdafx.h"
+
 #include "Engine.h"
-#include <wrl/client.h>
-#include <dxgi1_6.h>
-#include <d3dcommon.h>
-#include <d3d12.h>
 #include "Window/Window.h"
 #include "Graphics/D12Renderer.h"
 
@@ -50,11 +48,13 @@ void Enj::Engine::Init(std::shared_ptr<Enj::Window> window) {
 }
 
 //*********************************************************************************
-void Enj::Engine::Update() {}
+void Enj::Engine::Update(const FrameData& frameData) {
+    mRenderer->Update(frameData);
+}
 
 //*********************************************************************************
-void Enj::Engine::Render() {
-    mRenderer->Render();
+void Enj::Engine::Render(const FrameData& frameData) {
+    mRenderer->Render(frameData);
 }
 
 //*********************************************************************************
